@@ -43,12 +43,13 @@ class App extends Component {
   addItem() {
     let items = this.cloneMap(this.state.items),
         draft = this.state.draft,
-        existing = items[draft.name];
+        name = draft.name.trim(),
+        existing = items[name];
 
     if (existing) {
       existing.qty = parseInt(existing.qty, 10) + 1;
     } else {
-      items[draft.name] = {qty: draft.qty};
+      items[name] = {qty: draft.qty};
     }
 
     this.setState({draft: this.freshDraft(), items: items}, this.persistItems);
@@ -67,6 +68,7 @@ class App extends Component {
     if (confirm("This will delete all of your saved items. Continue?")) {
       localStorage.clear()
     }
+    this.setState({items: []});
     this.focusField();
   }
 
