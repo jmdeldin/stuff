@@ -8,21 +8,13 @@ class App extends Component {
     super(props);
     this.state = {
       draft: this.freshDraft(),
-      items: new Map(
-        [
-          ["boots", new Map([["qty", 1]])],
-        ]
-      ),
+      items: this.fetchItems()
     };
-
-      //   new Map([["id", "ID-1"], ["name", "boots"], ["qty", 1]]),
-      //   new Map([["id", "ID-2"], ["name", "socks"], ["qty", 2]]),
-      // ],
-    // };
 
     this.handleInputChange = this.handleInputChange.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
     this.removeItem = this.removeItem.bind(this);
+    this.flushDatabase = this.flushDatabase.bind(this);
   }
 
   handleInputChange(event) {
@@ -32,7 +24,7 @@ class App extends Component {
         draft = this.state.draft;
 
     if (name === "name" || name === "qty") {
-      draft.set(name, value);
+      draft[name] = value;
     }
 
     this.setState({draft: draft});
@@ -41,33 +33,41 @@ class App extends Component {
   isValid() {
     let draft = this.state.draft;
 
-    return draft.get("name") !== "" && draft.get("qty") > 0;
+    return draft.name !== "" && draft.qty > 0;
   }
 
   cloneMap(map) {
-    let newMap = new Map();
-    map.forEach(function (subMap, key) {
-      let tmp = new Map();
-      for (let [subKey, subValue] of subMap.entries()) {
-        tmp.set(subKey, subValue);
-      }
-      newMap.set(key, tmp);
-    });
-
-    return newMap;
+    return Object.assign({}, map);
   }
 
   addItem() {
     let items = this.cloneMap(this.state.items),
-        existing = items.get(this.state.draft.get("name"));
+        draft = this.state.draft,
+        existing = items[draft.name];
 
     if (existing) {
-      existing.set("qty", parseInt(existing.get("qty"), 10) + 1);
+      existing.qty = parseInt(existing.qty, 10) + 1;
     } else {
-      items.set(this.state.draft.get("name"), this.state.draft);
+      items[draft.name] = {qty: draft.qty};
     }
 
-    this.setState({items: items}, this.resetDraft);
+    this.setState({draft: this.freshDraft(), items: items}, this.persistItems);
+  }
+
+  persistItems() {
+    localStorage.setItem("items", JSON.stringify(this.state.items));
+  }
+
+  fetchItems() {
+    let items = JSON.parse(localStorage.getItem("items"));
+    return items ? items : [];
+  }
+
+  flushDatabase() {
+    if (confirm("This will delete all of your saved items. Continue?")) {
+      localStorage.clear()
+    }
+    this.focusField();
   }
 
   uuid() {
@@ -75,11 +75,15 @@ class App extends Component {
   }
 
   freshDraft() {
-    return new Map([["id", this.uuid()], ["name", ""], ["qty", "1"]]);
+    return {name: "", qty: 1};
   }
 
   resetDraft() {
     this.setState({draft: this.freshDraft()});
+  }
+
+  focusField() {
+    this.nameInput.focus();
   }
 
   handleSubmit(event) {
@@ -87,32 +91,31 @@ class App extends Component {
       this.addItem();
     }
 
-    this.nameInput.focus();
+    this.focusField();
     event.preventDefault();
   }
 
   removeItem(name) {
-    debugger
     let items = this.cloneMap(this.state.items);
-    if (items.get(name)) {
-      items.delete(name);
+    if (items[name]) {
+      delete items[name];
     }
     this.setState({items: items});
   }
 
   render() {
     let renderedItems = [];
-    this.state.items.forEach((item, name) => {
+    for (let name in this.state.items) {
       renderedItems.push(
         <tr key={name}>
           <td>{name}</td>
-          <td>{item.get("qty")}</td>
+          <td>{this.state.items[name].qty}</td>
           <td>
             <button onClick={this.removeItem.bind(this, name)}>Remove</button>
           </td>
         </tr>
       );
-    });
+    }
 
     return (
       <div className="container">
@@ -125,12 +128,13 @@ class App extends Component {
             <label htmlFor="name">Item</label>
             <input type="text" onChange={this.handleInputChange}
                    ref={(input) => {this.nameInput = input; }}
-                   id="name" name="name" value={this.state.draft.get("name")}/>
+                   id="name" name="name" value={this.state.draft.name}/>
           </div>
+
           <div>
             <label htmlFor="qty">Quantity</label>
             <input type="number" min="1" step="1" onChange={this.handleInputChange}
-                   id="qty" name="qty" value={this.state.draft.get("qty")}/>
+                   id="qty" name="qty" value={this.state.draft.qty}/>
           </div>
           <button className="button-primary">Add</button>
         </form>
@@ -146,6 +150,9 @@ class App extends Component {
             {renderedItems}
           </tbody>
         </table>
+        <div>
+          <button className="danger" onClick={this.flushDatabase}>Reset</button>
+        </div>
       </div>
     );
   }
