@@ -15,6 +15,7 @@ class App extends Component {
     this.handleSubmit = this.handleSubmit.bind(this);
     this.removeItem = this.removeItem.bind(this);
     this.flushDatabase = this.flushDatabase.bind(this);
+    this.exportCsv = this.exportCsv.bind(this);
   }
 
   handleInputChange(event) {
@@ -66,7 +67,7 @@ class App extends Component {
 
   flushDatabase() {
     if (confirm("This will delete all of your saved items. Continue?")) {
-      localStorage.clear()
+      localStorage.clear();
     }
     this.setState({items: []});
     this.focusField();
@@ -78,10 +79,6 @@ class App extends Component {
 
   freshDraft() {
     return {name: "", qty: 1};
-  }
-
-  resetDraft() {
-    this.setState({draft: this.freshDraft()});
   }
 
   focusField() {
@@ -103,6 +100,28 @@ class App extends Component {
       delete items[name];
     }
     this.setState({items: items});
+  }
+
+  items2csv() {
+    let csv = ["item,quantity\n"];
+    for (let name in this.state.items) {
+      csv.push([name, this.state.items[name].qty].join(',') + "\n");
+    }
+    return csv;
+  }
+
+  exportCsv() {
+    let csv = this.items2csv(),
+        blob = new Blob([csv], {type: "text/csv"}),
+        link = window.document.createElement("a");
+
+    link.href = window.URL.createObjectURL(blob);
+    link.download = "stuff.csv";
+
+    document.body.appendChild(link);
+
+    link.click();
+    document.body.removeChild(link);
   }
 
   render() {
@@ -153,11 +172,14 @@ class App extends Component {
           </tbody>
         </table>
         <div>
+          <button className="" onClick={this.exportCsv}>Download</button>
+          &nbsp;
           <button className="danger" onClick={this.flushDatabase}>Reset</button>
         </div>
       </div>
     );
   }
+
 }
 
 export default App;
